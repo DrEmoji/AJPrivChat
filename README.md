@@ -5,7 +5,7 @@ This patch introduces a powerful new feature to enhance player communication: **
 ### 🔹 What It Does
 
 - Allows **unfiltered messaging** through a dedicated private channel.
-- Uses a **special purple "Send" button**, located next to the regular send button, to send **Private Messages**.
+- Uses a **special purple send message button**, located next to the regular send button, to send **Private Messages**.
 - Messages are only visible to **other players who also have this patch installed** — ensuring modded users can communicate discreetly.
 
 ### ⚠️ Important Notes
