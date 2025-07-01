@@ -19,6 +19,7 @@ package avatar
    import gui.EmoticonUtility;
    import gui.GuiManager;
    import gui.SafeChatManager;
+   import it.gotoandplay.smartfoxserver.util.Entities;
    import loader.DefPacksDefHelper;
    import localization.LocalizationManager;
    import nodeHop.NodeHopXtCommManager;
@@ -745,7 +746,8 @@ package avatar
                      case 3:
                         if(_loc2_.indexOf(":") == -1)
                         {
-                           AvatarManager.addAvatarMessage(_loc2_,_loc19_,int(param1[5]));
+                           var decodedMessage:String = Entities.decodeEntities(_loc2_);
+                           AvatarManager.addAvatarMessage(decodedMessage,_loc19_,int(param1[5]));
                         }
                         _loc5_ = _actionMgr.matchActionString(_loc2_);
                         if(_loc5_)
