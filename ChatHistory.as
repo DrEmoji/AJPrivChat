@@ -1,858 +1,874 @@
-package avatar
+package gui
 {
-   import com.adobe.utils.StringUtil;
-   import com.sbi.client.SFEvent;
-   import com.sbi.debug.DebugUtility;
-   import com.sbi.popup.SBAJOkPopup;
+   import avatar.Avatar;
+   import avatar.AvatarManager;
+   import avatar.UserInfo;
+   import buddy.BuddyManager;
+   import com.sbi.analytics.SBTracker;
+   import com.sbi.popup.SBOkPopup;
    import com.sbi.popup.SBYesNoPopup;
    import flash.display.MovieClip;
-   import flash.display.Sprite;
+   import flash.events.Event;
+   import flash.events.KeyboardEvent;
    import flash.events.MouseEvent;
+   import flash.events.TextEvent;
    import flash.external.ExternalInterface;
-   import flash.text.TextFormat;
-   import flash.utils.setTimeout;
-   import game.MinigameInfo;
-   import game.MinigameManager;
-   import gui.ActionManager;
-   import gui.ChatHistory;
-   import gui.EmoticonManager;
-   import gui.EmoticonUtility;
-   import gui.GuiManager;
-   import gui.SafeChatManager;
-   import loader.DefPacksDefHelper;
+   import flash.text.StyleSheet;
+   import flash.text.TextField;
+   import flash.ui.Mouse;
+   import gui.itemWindows.ItemWindowTextNode;
    import localization.LocalizationManager;
-   import nodeHop.NodeHopXtCommManager;
    import quest.QuestManager;
-   import quest.QuestXtCommManager;
-   import room.RoomManagerWorld;
+   import room.RoomXtCommManager;
    
-   public class UserCommXtCommManager
+   public class ChatHistory
    {
       
-      public static var RAW_STR:String;
+      private const CHAT_DIM_ALPHA:Number = 0.5;
       
-      private static var _drainPopupDelay:Number;
+      private const CHAT_BRIGHT_ALPHA:Number = 1;
       
-      private static var _mainHud:MovieClip;
+      private var _keyListenersActive:Boolean;
       
-      private static var _chatHist:ChatHistory;
+      private var _enableFreeChat:Boolean = true;
       
-      private static var _emoteMgr:EmoticonManager;
+      private var _predictiveTextManager:PredictiveTextManager;
       
-      private static var _actionMgr:ActionManager;
+      private var _predictiveText:MovieClip;
       
-      private static var _roomMgr:RoomManagerWorld;
+      private var _specialCharText:MovieClip;
       
-      private static var _spellingCorrections:Object;
+      private var _chatText:TextField;
       
-      private static var _emoteDefs:Object;
+      private var _chatBarContainer:MovieClip;
       
-      private static var _specialWords:Object;
+      private var _chatRepeatBtn:MovieClip;
       
-      private static var _replacedWords:Object;
+      private var _chatRepeatWindow:MovieClip;
       
-      private static var _customPVPMessageCallback:Object;
+      private var _repeatChatWindows:WindowGenerator;
       
-      private static var _customPVPPassback:Object;
+      private var _chatRepeatArray:Array;
       
-      private static var _originalPermEmoteBeingDisplayed:int;
+      private var _hasSetupChatRepeatBtn:Boolean;
       
-      private static var _secondPermEmoteInUse:Boolean;
+      private var _isOverChatText:Boolean;
       
-      private static const BROADCAST_MESSAGE_LOC_ID_UPDATING_AJ_FULL_DEPLOY_IN_ONE_MINUTE:int = 22368;
+      public var chatHistory:MovieClip;
       
-      private static const BROADCAST_MESSAGE_LOC_ID_UPDATING_AJ_FULL_DEPLOY_IN_N_MINUTES:int = 22367;
+      public var chatUpDown:MovieClip;
       
-      private static const BROADCAST_MESSAGE_LOC_ID_UPDATING_AJ_HOTFIX_IN_ONE_MINUTE:int = 22370;
+      public var chatMsgText:TextField;
       
-      private static const BROADCAST_MESSAGE_LOC_ID_UPDATING_AJ_HOTFIX_IN_N_MINUTES:int = 22369;
+      public var chatSendBtn:MovieClip;
       
-      private static var _playerSfsUserId:int = -1;
+      public var sendMsgCallback:Function;
       
-      public function UserCommXtCommManager()
+      public function ChatHistory(param1:MovieClip, param2:MovieClip, param3:MovieClip, param4:MovieClip, param5:TextField, param6:MovieClip, param7:Function, param8:MovieClip, param9:MovieClip, param10:MovieClip, param11:MovieClip)
       {
          super();
-      }
-      
-      public static function init() : void
-      {
-         DebugUtility.debugTrace("UserCommXtCommManager init - initializing");
-         _mainHud = GuiManager.mainHud;
-         _chatHist = GuiManager.chatHist;
-         _emoteMgr = GuiManager.emoteMgr;
-         _actionMgr = GuiManager.actionMgr;
-         _roomMgr = RoomManagerWorld.instance;
-         _drainPopupDelay = Math.random() * 10 * 60 * 1000;
-         if(_drainPopupDelay < 300000)
+         if(chatHistory)
          {
-            _drainPopupDelay = Math.random() * 10 * 60 * 1000;
+            throw new Error("ERROR: Singleton ChatHistory did not expect to be created twice!");
          }
-         _playerSfsUserId = AvatarManager.playerSfsUserId;
-         RAW_STR = gMainFrame.server.rawProtocolSeparator;
-         var _loc1_:DefPacksDefHelper = new DefPacksDefHelper();
-         _loc1_.init(1036,onEmoticonDefsLoaded,null,2);
-         DefPacksDefHelper.mediaArray[1036] = _loc1_;
-         _loc1_ = new DefPacksDefHelper();
-         _loc1_.init(10,onAutoCorrectListLoaded,null,1);
-         DefPacksDefHelper.mediaArray["10"] = _loc1_;
-         _specialWords = {};
-         _specialWords[LocalizationManager.translateIdOnly(14855)] = LocalizationManager.translateIdOnly(11142);
-         _originalPermEmoteBeingDisplayed = -1;
+         setupInitialItems(param1,param2,param3,param4,param5,param6,param7,param8,param9,param10,param11);
       }
       
-      private static function onAutoCorrectListLoaded(param1:DefPacksDefHelper) : void
+      public function reload(param1:MovieClip, param2:MovieClip, param3:MovieClip, param4:MovieClip, param5:TextField, param6:MovieClip, param7:Function, param8:MovieClip, param9:MovieClip, param10:MovieClip, param11:MovieClip, param12:Boolean) : void
       {
-         var _loc3_:int = 0;
-         DefPacksDefHelper.mediaArray["10"] = null;
-         var _loc2_:String = param1.def.toString().toLowerCase() as String;
-         _spellingCorrections = {};
-         _spellingCorrections["constructor"] = "constructor";
-         var _loc4_:Array = _loc2_.split("\r\n");
-         _loc3_ = 0;
-         while(_loc3_ < _loc4_.length)
+         _keyListenersActive = true;
+         _isOverChatText = false;
+         if(chatHistory)
          {
-            _loc4_[_loc3_] = _loc4_[_loc3_].split(",");
-            if(!(_loc4_[_loc3_][0] == null || _loc4_[_loc3_][0].length == 0 || _loc4_[_loc3_][1] == null || _loc4_[_loc3_][1].length == 0))
+            chatHistory.removeEventListener("mouseDown",chatClickHandler);
+         }
+         if(chatUpDown)
+         {
+            chatUpDown.removeEventListener("mouseDown",openCloseHandler);
+         }
+         if(_chatText)
+         {
+            _chatText.removeEventListener("mouseDown",chatClickHandler);
+            _chatText.removeEventListener("link",onChatLink);
+            _chatText.removeEventListener("mouseOver",overChatText);
+            _chatText.removeEventListener("mouseOut",outChatText);
+         }
+         if(chatMsgText)
+         {
+            chatMsgText.removeEventListener("keyDown",keyDownListener);
+            chatMsgText.removeEventListener("mouseDown",msgTextDownHandler);
+            if(Mouse["supportsNativeCursor"])
             {
-               _spellingCorrections[StringUtil.trim(_loc4_[_loc3_][0])] = StringUtil.trim(_loc4_[_loc3_][1]);
-            }
-            _loc3_++;
-         }
-      }
-      
-      private static function onEmoticonDefsLoaded(param1:DefPacksDefHelper) : void
-      {
-         DefPacksDefHelper.mediaArray[1036] = null;
-         var _loc3_:Object = param1.def;
-         var _loc2_:Object = {};
-         for each(var _loc4_ in _loc3_)
-         {
-            _loc2_[_loc4_.id] = int(_loc4_.mediaRef);
-         }
-         _emoteDefs = _loc2_;
-      }
-      
-      public static function destroy() : void
-      {
-      }
-      
-      public static function set playerSfsUserId(param1:int) : void
-      {
-         _playerSfsUserId = param1;
-      }
-      
-      public static function getEmoticonMediaId(param1:int) : int
-      {
-         if(!_emoteDefs[param1])
-         {
-            return 0;
-         }
-         return _emoteDefs[param1];
-      }
-      
-      public static function getEmoticonDefId(param1:int) : int
-      {
-         for(var _loc2_ in _emoteDefs)
-         {
-            if(_emoteDefs[_loc2_] == param1)
-            {
-               return int(_loc2_);
+               chatMsgText.removeEventListener("mouseOver",mouseOverMsgText);
+               chatMsgText.removeEventListener("mouseOut",mouseOutMsgText);
             }
          }
-         return 0;
+         if(_chatRepeatBtn)
+         {
+            _chatRepeatBtn.removeEventListener("mouseDown",onChatRepeatBtn);
+         }
+         _hasSetupChatRepeatBtn = false;
+         setupInitialItems(param1,param2,param3,param4,param5,param6,param7,param8,param9,param10,param11);
       }
       
-      public static function addChatMessage(param1:String) : void
-      {
-         _chatHist.addMessage(gMainFrame.userInfo.playerAvatarInfo.avName,gMainFrame.userInfo.playerAvatarInfo.userName,gMainFrame.userInfo.playerUserInfo.getModeratedUserName(),param1);
-      }
-      
-      public static function sendAvatarSafeChat(param1:String, param2:String, param3:Boolean = true) : void
-      {
-         if(gMainFrame.clientInfo.invisMode)
-         {
-            return;
-         }
-         AvatarManager.addAvatarMessage(param1,_playerSfsUserId,0);
-         addChatMessage(param1);
-         gMainFrame.server.sendMessage(param2 + RAW_STR + 1);
-         if(_chatHist.enableFreeChatValue)
-         {
-            _chatHist.resetTreeSearch();
-            _chatHist.chatMsgText.text = "";
-            _chatHist.setFocusOnMsgText();
-         }
-         if(param3)
-         {
-            GuiManager.safeChatBtnDownHandler(null);
-         }
-      }
-      
-      public static function sendAvatarEmote(param1:Sprite) : void
-      {
-         if(gMainFrame.clientInfo.invisMode)
-         {
-            return;
-         }
-         AvatarManager.setAvatarEmote(param1);
-         if(!EmoticonUtility.getEmoteString(param1))
-         {
-            throw new Error("setAvatarEmote: sent invalid emote sprite?!");
-         }
-         addChatMessage(EmoticonUtility.getEmoteString(param1));
-         gMainFrame.server.sendMessage(EmoticonUtility.idForEmote(param1) + RAW_STR + 2);
-         if(_chatHist.enableFreeChatValue)
-         {
-            _chatHist.resetTreeSearch();
-            _chatHist.chatMsgText.text = "";
-            _chatHist.setFocusOnMsgText();
-         }
-      }
-      
-      public static function sendAvatarAction(param1:Sprite) : void
-      {
-         if(gMainFrame.clientInfo.invisMode)
-         {
-            return;
-         }
-         AvatarManager.setAvatarAction(param1);
-         if(!_actionMgr.getActionString(param1))
-         {
-            throw new Error("setAvatarAction: sent invalid action sprite?!");
-         }
-         addChatMessage(_actionMgr.getActionString(param1));
-         var _loc2_:avatar.AvatarWorldView = AvatarManager.avatarViewList[AvatarManager.playerSfsUserId];
-         var _loc3_:int = _loc2_.lastIdleAnim;
-         gMainFrame.server.sendMessage(_actionMgr.getActionString(param1) + RAW_STR + 3 + RAW_STR + _loc3_);
-         if(_chatHist.enableFreeChatValue)
-         {
-            _chatHist.resetTreeSearch();
-            _chatHist.chatMsgText.text = "";
-            _chatHist.setFocusOnMsgText();
-         }
-      }
-      
-      public static function sendAvatarAttachmentEmot(param1:int, param2:String = null) : void
-      {
-         if(gMainFrame.clientInfo.invisMode)
-         {
-            return;
-         }
-         if(param2 == null)
-         {
-            param2 = "";
-         }
-         gMainFrame.server.sendMessage(param1 + "," + param2 + RAW_STR + 4);
-      }
-      
-      public static function sendAvatarBlendColor(param1:uint) : void
-      {
-         gMainFrame.server.sendMessage(int(param1) + RAW_STR + 8);
-      }
-      
-      public static function sendAvatarAlphaLevel(param1:uint) : void
-      {
-         gMainFrame.server.sendMessage(int(param1) + RAW_STR + 10);
-      }
-      
-      public static function sendChatMessage(param1:int, param2:String) : void
-      {
-         if(gMainFrame.clientInfo.invisMode || !Utility.canChat())
-         {
-            return;
-         }
-         param2 = fixMispellings(param2);
-         param2 = adjustCamelCase(param2);
-         AvatarManager.addAvatarMessage("...",param1,0);
-         param2 = adjustSpecialWords(param2);
-         var _loc3_:int = gMainFrame.userInfo.sgChatType == 1 ? 0 : 9;
-         gMainFrame.server.sendMessage(param2 + RAW_STR + _loc3_);
-         if(_chatHist.enableFreeChatValue)
-         {
-            _chatHist.resetTreeSearch();
-            _chatHist.chatMsgText.text = "";
-            gMainFrame.stage.focus = _chatHist.chatMsgText;
-         }
-      }
-      
-      public static function adjustSpecialWords(param1:String) : String
-      {
-         var _loc4_:String = null;
-         var _loc7_:String = null;
-         var _loc8_:int = 0;
-         var _loc9_:int = 0;
-         var _loc5_:String = null;
-         var _loc10_:String = null;
-         var _loc3_:String = null;
-         _replacedWords = {};
-         var _loc6_:Array = param1.split(" ");
-         var _loc11_:int = 0;
-         _loc8_ = 0;
-         while(_loc8_ < _loc6_.length)
-         {
-            _loc7_ = _loc6_[_loc8_];
-            _loc4_ = _loc7_.toLowerCase();
-            for(var _loc2_ in _specialWords)
-            {
-               _loc9_ = int(_loc4_.indexOf(_loc2_));
-               if(_loc9_ >= 0)
-               {
-                  _loc5_ = _loc7_.substr(0,_loc9_);
-                  _loc10_ = _loc7_.substr(_loc9_,_loc2_.length);
-                  _loc3_ = _loc7_.substr(_loc9_ + _loc2_.length);
-                  _loc11_ = getCaseType(_loc10_);
-                  _loc10_ = setCaseType(_specialWords[_loc2_],_loc11_);
-                  _loc6_[_loc8_] = _loc5_ + _loc10_ + _loc3_;
-                  _replacedWords[_loc6_[_loc8_]] = _loc7_;
-               }
-            }
-            _loc8_++;
-         }
-         return _loc6_.join(" ");
-      }
-      
-      private static function getCaseType(param1:String) : int
-      {
-         if(param1.toLowerCase() == param1)
-         {
-            return 0;
-         }
-         var _loc3_:String = param1.charAt(0);
-         var _loc2_:int = int(param1.match(/[A-Z]/g).length);
-         if(_loc2_ == param1.length)
-         {
-            return 1;
-         }
-         return 2;
-      }
-      
-      private static function setCaseType(param1:String, param2:int) : String
-      {
-         if(param2 == 0)
-         {
-            return param1.toLowerCase();
-         }
-         if(param2 == 1)
-         {
-            return param1.toUpperCase();
-         }
-         param1 = param1.toLowerCase();
-         var _loc3_:String = param1.charAt(0).toUpperCase();
-         return _loc3_ + param1.substr(1);
-      }
-      
-      public static function reverseSpecialWords(param1:String) : String
-      {
-         var _loc3_:String = null;
-         var _loc4_:int = 0;
-         if(_replacedWords == null)
-         {
-            return param1;
-         }
-         var _loc2_:Array = param1.split(" ");
-         _loc4_ = 0;
-         while(_loc4_ < _loc2_.length)
-         {
-            _loc3_ = _loc2_[_loc4_].toLowerCase();
-            if(!(_replacedWords[_loc3_] == null || _loc3_ == "constructor"))
-            {
-               _loc2_[_loc4_] = _replacedWords[_loc3_];
-            }
-            _loc4_++;
-         }
-         _replacedWords = null;
-         return _loc2_.join(" ");
-      }
-      
-      public static function adjustCamelCase(param1:String) : String
+      public function resetChatPrivs(param1:Boolean = false) : void
       {
          var _loc2_:int = 0;
-         var _loc7_:String = null;
-         var _loc6_:String = null;
-         var _loc8_:String = null;
-         var _loc4_:int = 0;
-         var _loc5_:int = 0;
-         var _loc3_:Array = param1.split(" ");
-         _loc4_ = 0;
-         while(_loc4_ < _loc3_.length)
+         if(Utility.canChat())
          {
-            _loc6_ = _loc3_[_loc4_];
-            _loc7_ = _loc6_.match(/[a-zA-Z]/g).join("");
-            _loc8_ = _loc7_.charAt(0);
-            _loc2_ = int(_loc7_.match(/[A-Z]/g).length);
-            if(_loc2_ > 0 && _loc2_ != _loc7_.length)
+            _loc2_ = int(gMainFrame.userInfo.sgChatType);
+            if(_loc2_ != 0 && _loc2_ != 3)
             {
-               if(_loc8_.match(/[A-z]/g).length == 1)
+               chatMsgText.restrict = LocalizationManager.currentLanguage == LocalizationManager.LANG_ENG ? "A-Za-z0-9!\'.,():?\\- " : "A-Za-z0-9À-ÖØ-öø-ÿ!\'.,():?¿¡\\- ";
+               enableFreeChat(true);
+               if(param1 && _predictiveTextManager)
                {
-                  _loc5_ = getIndexOfFirstLetter(_loc6_,_loc7_);
-                  _loc3_[_loc4_] = _loc6_.substr(0,_loc5_) + _loc8_ + _loc6_.toLowerCase().substr(_loc5_ + 1,_loc6_.length);
+                  _predictiveTextManager.reload(chatMsgText,_predictiveText,_specialCharText,_chatBarContainer);
                }
                else
                {
-                  _loc3_[_loc4_] = _loc6_.toLowerCase();
+                  _predictiveTextManager = new PredictiveTextManager();
+                  _predictiveTextManager.init(chatMsgText,0,_predictiveText,_specialCharText,343,_chatBarContainer,sendMsgCallback);
                }
-            }
-            _loc4_++;
-         }
-         return _loc3_.join(" ");
-      }
-      
-      public static function getFirstLetter(param1:String) : String
-      {
-         var _loc2_:String = param1.match(/[a-zA-Z]/g).join("");
-         if(_loc2_.length > 0)
-         {
-            return _loc2_.charAt(0);
-         }
-         return null;
-      }
-      
-      public static function getIndexOfFirstLetter(param1:String, param2:String) : int
-      {
-         var _loc3_:int = 0;
-         if(param2 == "")
-         {
-            param2 = param1.match(/[a-zA-Z]/g).join();
-         }
-         _loc3_ = 0;
-         while(_loc3_ < param1.length)
-         {
-            if(param1.charAt(_loc3_) == param2.charAt(0))
-            {
-               return _loc3_;
-            }
-            _loc3_++;
-         }
-         return -1;
-      }
-      
-      public static function fixMispellings(param1:String) : String
-      {
-         var _loc4_:String = null;
-         var _loc3_:int = 0;
-         if(!_spellingCorrections || LocalizationManager.currentLanguage != LocalizationManager.LANG_ENG)
-         {
-            return param1;
-         }
-         var _loc2_:Array = param1.split(" ");
-         _loc3_ = 0;
-         while(_loc3_ < _loc2_.length)
-         {
-            _loc4_ = _loc2_[_loc3_].toLowerCase();
-            _loc4_ = stripPunctuation(_loc4_);
-            if(_spellingCorrections[_loc4_] != null)
-            {
-               _loc4_ = _spellingCorrections[_loc4_];
-               _loc2_[_loc3_] = _loc4_;
-            }
-            _loc3_++;
-         }
-         return _loc2_.join(" ");
-      }
-      
-      public static function stripPunctuation(param1:String) : String
-      {
-         return param1.replace(/[^A-Za-z0-9 ']+/g,"");
-      }
-      
-      public static function sendAvatarSlide(param1:String) : void
-      {
-         if(gMainFrame.clientInfo.invisMode)
-         {
-            return;
-         }
-         gMainFrame.server.sendMessage(param1 + RAW_STR + 6);
-      }
-      
-      public static function sendPermEmote(param1:int) : void
-      {
-         if(_originalPermEmoteBeingDisplayed != -1)
-         {
-            if(param1 == -1)
-            {
-               if(_secondPermEmoteInUse)
+               if(_chatText)
                {
-                  param1 = _originalPermEmoteBeingDisplayed;
-                  _secondPermEmoteInUse = false;
+                  _chatText.selectable = false;
+                  _chatText.htmlText = "";
                }
-               _originalPermEmoteBeingDisplayed = -1;
+               _enableFreeChat = true;
             }
             else
             {
-               _secondPermEmoteInUse = true;
+               enableFreeChat(false);
             }
          }
          else
          {
-            _originalPermEmoteBeingDisplayed = param1;
+            enableFreeChat(false);
          }
-         gMainFrame.server.sendMessage(param1 + RAW_STR + 5);
       }
       
-      public static function sendPetAction(param1:int, param2:int = 0) : void
+      public function destroy() : void
       {
-         gMainFrame.server.sendMessage(param1 + "," + param2 + RAW_STR + 7);
+         chatMsgText.removeEventListener("keyDown",keyDownListener);
+         _keyListenersActive = false;
+         chatMsgText.removeEventListener("mouseDown",msgTextDownHandler);
+         if(_chatText)
+         {
+            _chatText.removeEventListener("mouseDown",chatClickHandler);
+            _chatText.removeEventListener("link",onChatLink);
+            _chatText.removeEventListener("mouseOver",overChatText);
+            _chatText.removeEventListener("mouseOut",outChatText);
+            _chatText = null;
+         }
+         chatHistory.removeEventListener("mouseDown",chatClickHandler);
+         chatHistory.visible = false;
+         chatHistory = null;
+         chatUpDown.removeEventListener("mouseDown",openCloseHandler);
+         chatUpDown.visible = false;
+         chatUpDown = null;
       }
       
-      public static function sendCustomAdventureMessage(param1:Boolean) : void
+      public function showChatInput(param1:Boolean) : void
       {
-         gMainFrame.server.sendMessage((param1 ? "on" : "off") + RAW_STR + 11);
+         chatUpDown.visible = param1;
+         chatMsgText.visible = param1;
+         if(chatSendBtn)
+         {
+            chatSendBtn.visible = param1;
+         }
       }
       
-      public static function sendCustomPVPMessage(param1:Boolean, param2:int, param3:Function = null, param4:Object = null) : void
+      public function addMessageById(param1:int, param2:String) : void
       {
-         _customPVPMessageCallback = param3;
-         _customPVPPassback = param4;
-         gMainFrame.server.sendMessage((param1 ? "on" : "off") + RAW_STR + 12 + RAW_STR + param2);
-      }
-      
-      public static function onSendMessage(param1:MouseEvent, param2:String = "") : void
-      {
-         var _loc5_:Sprite = null;
          var _loc4_:String = null;
-         if(_playerSfsUserId == -1)
+         var _loc3_:UserInfo = null;
+         var _loc5_:Avatar = AvatarManager.getAvatarBySfsUserId(param1);
+         if(_loc5_)
          {
-            DebugUtility.debugTrace("WARNING - UserCommXtCommManager.init was never called or the playerAvatarId is bad");
-            _playerSfsUserId = AvatarManager.playerSfsUserId;
-         }
-         var _loc3_:String = param2 == "" ? _mainHud.chatBar.text01_chat.text : param2;
-         _loc3_ = _loc3_.split("\r").join("");
-         _loc3_ = _loc3_.split(RAW_STR).join("");
-         _loc3_ = StringUtil.trim(_loc3_);
-         if(_loc3_.length <= 0)
-         {
-            return;
-         }
-         var _loc6_:Object = EmoticonUtility.matchEmoteString(_loc3_);
-         if(_loc6_.status)
-         {
-            if(_loc6_.sprite)
+            _loc4_ = _loc5_.userName;
+            if(_loc4_ != null && _loc4_ != "_unknown")
             {
-               sendAvatarEmote(_loc6_.sprite);
-               AvatarManager.setAvatarEmote(_loc6_.sprite,-2);
-            }
-            else
-            {
-               _loc5_ = _actionMgr.matchActionString(_loc3_);
-               if(_loc5_)
-               {
-                  sendAvatarAction(_loc5_);
-                  AvatarManager.setAvatarAction(_loc5_,-2);
-               }
-               else
-               {
-                  _loc4_ = SafeChatManager.safeChatCodeForString(onSendMessage,[param1,param2],_loc3_,gMainFrame.clientInfo.roomType == 7 && !QuestManager.isQuestLikeNormalRoom() ? 4 : 0);
-                  if(_loc4_ == "")
-                  {
-                     return;
-                  }
-                  if(_loc4_)
-                  {
-                     sendAvatarSafeChat(_loc3_,_loc4_,false);
-                     AvatarManager.addAvatarMessage(_loc3_,_playerSfsUserId,0);
-                  }
-                  else
-                  {
-                     sendChatMessage(_playerSfsUserId,_loc3_);
-                  }
-               }
-            }
-            return;
-         }
-         _chatHist.resetTreeSearch();
-         _chatHist.chatMsgText.text = "";
-         gMainFrame.stage.focus = _chatHist.chatMsgText;
-      }
-      
-      public static function handleXtReply(param1:SFEvent) : void
-      {
-         var _loc2_:Array = param1.obj;
-         switch(_loc2_[0])
-         {
-            case "uc":
-               userCommChatResponse(_loc2_);
-               break;
-            case "ua":
-               userCommAdminMessageResponse(_loc2_);
-               break;
-            default:
-               throw new Error("UserCommXtCommManager illegal data:" + _loc2_[0]);
-         }
-      }
-      
-      private static function userCommChatResponse(param1:Array) : void
-      {
-         var _loc2_:* = null;
-         var _loc16_:int = 0;
-         var _loc4_:Array = null;
-         var _loc12_:Array = null;
-         var _loc10_:Array = null;
-         var _loc3_:Object = null;
-         var _loc14_:Array = null;
-         var _loc6_:MinigameInfo = null;
-         var _loc13_:Boolean = false;
-         var _loc17_:String = null;
-         var _loc8_:Sprite = null;
-         var _loc5_:Sprite = null;
-         var _loc9_:Array = null;
-         var _loc11_:int = 0;
-         var _loc7_:Avatar = null;
-         var _loc15_:Array = null;
-         var _loc18_:int = int(param1[2]);
-         var _loc19_:int = int(param1[4]);
-         if(_loc19_ == 5)
-         {
-            _loc16_ = int(param1[3]);
-            if(_loc16_ >= 0)
-            {
-               AvatarManager.setAvatarEmote(null,_loc18_,_loc16_);
-            }
-            else
-            {
-               AvatarManager.setChatBalloonReadyForClear(_loc18_);
-            }
-         }
-         else if(_loc19_ == 6)
-         {
-            if(_loc18_ != gMainFrame.server.userId)
-            {
-               _roomMgr.attachAvatarToSlide(AvatarManager.avatarViewList[_loc18_],param1[3]);
-            }
-         }
-         else if(_loc19_ == 7)
-         {
-            _loc4_ = param1[3].split(",");
-            AvatarManager.setPetAction(_loc18_,_loc4_[0],_loc4_[1]);
-         }
-         else if(_loc19_ == 11)
-         {
-            _loc2_ = param1[3];
-            if(_loc2_ == "off")
-            {
-               AvatarManager.addCustomAdventureMessage("","off",_loc18_,0,0);
-               if(_loc18_ == AvatarManager.playerSfsUserId)
-               {
-                  QuestManager.privateAdventureJoinClose(false,false);
-               }
-            }
-            else
-            {
-               _loc12_ = _loc2_.split("|");
-               _loc10_ = _loc12_[0].split(",");
-               _loc3_ = QuestXtCommManager.getScriptDef(_loc10_[0]);
+               _loc3_ = gMainFrame.userInfo.getUserInfoByUserName(_loc4_);
                if(_loc3_)
                {
-                  AvatarManager.addCustomAdventureMessage(LocalizationManager.translateIdOnly(_loc3_.titleStrId),_loc12_[1] + "|" + _loc10_[0],_loc18_,_loc10_[2],int(param1[5]));
+                  addMessage(_loc5_.avName,_loc4_,_loc3_.getModeratedUserName(),param2);
                }
             }
          }
-         else if(_loc19_ == 12)
+      }
+      
+      public function addMessage(param1:String, param2:String, param3:String, param4:String) : void
+      {
+         var _loc5_:Boolean = false;
+         var _loc6_:* = 0;
+         var _loc7_:int = 0;
+         var _loc8_:String = null;
+         if(_chatText && param1 != null && param1.length > 0 && param2 && param4)
          {
-            _loc2_ = param1[3];
-            _loc14_ = param1[3].split("|");
-            _loc6_ = MinigameManager.minigameInfoCache.getMinigameInfo(_loc14_[1]);
-            if(_loc14_[0] == "off")
+            _chatText.htmlText += "<a href=\"event:" + param2 + "\">" + (Utility.isSettingOn(MySettings.SETTINGS_USERNAME_BADGE) ? param3 : param1) + ": " + "</a>" + param4 + "\n";
+            if(_chatRepeatWindow && AvatarManager.playerAvatar && param2.toLowerCase() == AvatarManager.playerAvatar.userName.toLowerCase())
             {
-               if(_loc18_ == AvatarManager.playerSfsUserId)
+               _loc7_ = 0;
+               while(_loc7_ < _chatRepeatArray.length)
                {
-                  MinigameManager.readySelfForQuickMinigame(null,false);
-                  MinigameManager.readySelfForPvpGame(null,null,false);
+                  if(_chatRepeatArray[_loc7_] == param4)
+                  {
+                     _loc5_ = true;
+                     _loc6_ = _loc7_;
+                     break;
+                  }
+                  _loc7_++;
                }
-               AvatarManager.addCustomPvpMessage("",_loc14_[0],_loc18_,0,0);
+               if(!_loc5_)
+               {
+                  if(_chatRepeatArray.length >= 5)
+                  {
+                     _chatRepeatArray.shift();
+                  }
+                  _chatRepeatArray.push(param4);
+                  onChatRepeatBtn(null);
+               }
+               else
+               {
+                  _chatRepeatArray.splice(_loc6_,1);
+                  _chatRepeatArray.push(param4);
+                  onChatRepeatBtn(null);
+               }
+               setupRepeatChat();
+            }
+         }
+         else
+         {
+            _chatText.htmlText += "\"" + param4 + "\"" + "\n";
+         }
+         if(_chatText.numLines >= 100)
+         {
+            _loc8_ = _chatText.htmlText;
+            _chatText.htmlText = _loc8_.substr(_loc8_.indexOf("\n") + 1);
+         }
+         if(!_isOverChatText)
+         {
+            _chatText.scrollV = _chatText.maxScrollV;
+         }
+      }
+      
+      public function removeEmotesFromChatRepeat() : void
+      {
+         var _loc1_:int = 0;
+         if(_chatRepeatArray && _chatRepeatArray.length > 0)
+         {
+            _loc1_ = 0;
+            while(_loc1_ < _chatRepeatArray.length)
+            {
+               if(EmoticonUtility.doesStringMatchAnEmote(_chatRepeatArray[_loc1_]))
+               {
+                  _chatRepeatArray.splice(_loc1_,1);
+                  _loc1_--;
+               }
+               _loc1_++;
+            }
+            setupRepeatChat();
+            onChatRepeatBtn(null);
+         }
+      }
+      
+      public function addPrivateMessage(param1:String, param2:String, param3:String) : void
+      {
+         if(_chatText)
+         {
+            if(param2 == null)
+            {
+               _chatText.htmlText += param1 + ": " + param3 + "\n";
             }
             else
             {
-               if(_loc18_ == AvatarManager.playerSfsUserId)
-               {
-                  MinigameManager.readySelfForPvpGame({"typeDefId":_loc14_[1]},null,true,true);
-                  GuiManager.grayOutHudItemsForPrivateLobby(true,true);
-               }
-               AvatarManager.addCustomPvpMessage(LocalizationManager.translateIdOnly(_loc6_.titleStrId),_loc2_,_loc18_,0,int(param1[5]));
+               _chatText.htmlText += param1 + " to " + param2 + ": " + param3 + "\n";
             }
-            if(_customPVPMessageCallback)
+         }
+      }
+      
+      public function reAddKeyListeners() : void
+      {
+         if(!_keyListenersActive)
+         {
+            chatMsgText.addEventListener("keyDown",keyDownListener,false,0,true);
+            _keyListenersActive = true;
+         }
+      }
+      
+      public function removeKeyListeners() : void
+      {
+         if(_keyListenersActive)
+         {
+            chatMsgText.removeEventListener("keyDown",keyDownListener);
+            _keyListenersActive = false;
+         }
+      }
+      
+      public function clearChat() : void
+      {
+         if(_chatText)
+         {
+            _chatText.htmlText = "";
+         }
+         _chatRepeatArray = [];
+         setupRepeatChat();
+         onRepeatWindoesLoaded(true);
+         if(_chatText)
+         {
+            _chatText.scrollV = 0;
+         }
+      }
+      
+      public function openChat() : void
+      {
+         if(chatHistory.currentFrameLabel != "open")
+         {
+            chatUpDown.gotoAndStop("down");
+            chatHistory.gotoAndPlay("open");
+            brightenChat();
+            AJAudio.playChatOpenSound();
+            closeChatRepeatWindow();
+         }
+      }
+      
+      public function closeChatRepeatWindow() : void
+      {
+         if(_chatRepeatWindow && _chatRepeatWindow.visible)
+         {
+            _chatRepeatWindow.visible = false;
+            _chatRepeatBtn.downToUpState();
+         }
+      }
+      
+      public function dimChat() : void
+      {
+         if(chatHistory && chatHistory.currentFrameLabel == "open" && chatHistory.alpha == 1)
+         {
+            chatHistory.alpha = 0.5;
+         }
+      }
+      
+      public function brightenChat() : void
+      {
+         if(chatHistory.alpha != 1)
+         {
+            chatHistory.alpha = 1;
+         }
+      }
+      
+      public function closeChat() : void
+      {
+         if(chatHistory && chatHistory.currentFrameLabel != null && chatHistory.currentFrameLabel != "close")
+         {
+            _isOverChatText = false;
+            brightenChat();
+            chatUpDown.gotoAndStop("up");
+            chatHistory.gotoAndPlay("close");
+            AJAudio.playChatCloseSound();
+         }
+      }
+      
+      public function get enableFreeChatValue() : Boolean
+      {
+         return _enableFreeChat;
+      }
+      
+      public function enableFreeChat(param1:Boolean) : void
+      {
+         _enableFreeChat = param1;
+         chatMsgText.text = "";
+         if(!param1)
+         {
+            chatMsgText.restrict = "";
+            if(_chatText)
             {
-               if(_customPVPPassback != null)
-               {
-                  if(_customPVPPassback.hasOwnProperty("gameInfo"))
-                  {
-                     _customPVPMessageCallback(_customPVPPassback.gameInfo,_customPVPPassback.currUserName,_customPVPPassback.currUserNameModerated);
-                  }
-                  else if(_customPVPPassback.hasOwnProperty("gameEntry"))
-                  {
-                     _customPVPMessageCallback(_customPVPPassback.gameEntry,_customPVPPassback.frgJoinedCallback,_customPVPPassback.skipGameCard,_customPVPPassback.gameCloseCallback,_customPVPPassback.optionalParam);
-                  }
-                  else
-                  {
-                     _customPVPMessageCallback(_customPVPPassback);
-                  }
-               }
-               else
-               {
-                  _customPVPMessageCallback();
-               }
-               _customPVPMessageCallback = null;
+               _chatText.selectable = false;
             }
          }
          else
          {
-            _loc2_ = param1[3];
-            _loc13_ = false;
-            if(_loc19_ == 1)
+            chatMsgText.restrict = LocalizationManager.currentLanguage == LocalizationManager.LANG_ENG ? "A-Za-z0-9!\'.,():?\\- " : "A-Za-z0-9À-ÖØ-öø-ÿ!\'.,():?¿¡\\- ";
+            if(_chatText)
             {
-               _loc17_ = SafeChatManager.safeChatStringForCode(userCommChatResponse,[param1],_loc2_);
-               if(_loc17_ == "")
+               _chatText.selectable = false;
+            }
+         }
+         if(_specialCharText)
+         {
+            _specialCharText.visible = false;
+         }
+      }
+      
+      public function resetTreeSearch() : void
+      {
+         if(_predictiveTextManager)
+         {
+            _predictiveTextManager.resetTreeSearch();
+         }
+         if(_predictiveTextManager && _predictiveTextManager.isAllowedFreeChat())
+         {
+            chatMsgText.restrict = LocalizationManager.currentLanguage == LocalizationManager.LANG_ENG ? "A-Za-z0-9!\'.,():?\\- " : "A-Za-z0-9À-ÖØ-öø-ÿ!\'.,():?¿¡\\- ";
+         }
+      }
+      
+      public function doesChatContainText() : Boolean
+      {
+         if(chatMsgText.text != "")
+         {
+            return true;
+         }
+         return false;
+      }
+      
+      public function setFocusOnMsgText() : void
+      {
+         if(gMainFrame.userInfo.firstFiveMinutes <= 0 || gMainFrame.userInfo.sgChatType == 0 || gMainFrame.userInfo.sgChatType == 3 || !Utility.canChat())
+         {
+            gMainFrame.stage.focus = null;
+         }
+         else
+         {
+            gMainFrame.stage.focus = chatMsgText;
+         }
+      }
+      
+      public function setFocusToChatTextWithKeydown(param1:KeyboardEvent, param2:String) : void
+      {
+         if(gMainFrame.userInfo.firstFiveMinutes > 0)
+         {
+            gMainFrame.stage.focus = chatMsgText;
+            if(chatMsgText)
+            {
+               keyDownListener(param1);
+            }
+         }
+         else
+         {
+            gMainFrame.stage.focus = null;
+         }
+      }
+      
+      public function toggleInGameHud(param1:Boolean) : void
+      {
+         if(param1)
+         {
+            chatMsgText.maxChars = 40;
+         }
+         else
+         {
+            chatMsgText.maxChars = 70;
+         }
+      }
+      
+      private function setupInitialItems(param1:MovieClip, param2:MovieClip, param3:MovieClip, param4:MovieClip, param5:TextField, param6:MovieClip, param7:Function, param8:MovieClip, param9:MovieClip, param10:MovieClip, param11:MovieClip) : void
+      {
+         var _loc13_:StyleSheet = null;
+         var _loc12_:Object = null;
+         _keyListenersActive = true;
+         chatHistory = param1;
+         _predictiveText = param8;
+         _specialCharText = param9;
+         _chatBarContainer = param2;
+         _chatRepeatBtn = param10;
+         _chatRepeatWindow = param11;
+         _chatRepeatArray = [];
+         _isOverChatText = false;
+         if(param1)
+         {
+            chatHistory.gotoAndStop(1);
+            chatHistory.addEventListener("mouseDown",chatClickHandler,false,0,true);
+            chatUpDown = param3;
+            chatUpDown.gotoAndStop(1);
+            chatUpDown["up"].mouse.gotoAndStop(1);
+            chatUpDown.addEventListener("mouseDown",openCloseHandler,false,0,true);
+         }
+         if(param4)
+         {
+            param4.glow.visible = false;
+         }
+         chatMsgText = param5;
+         toggleInGameHud(false);
+         chatMsgText.text = "";
+         if(gMainFrame.userInfo.sgChatType == 0 || gMainFrame.userInfo.sgChatType == 3)
+         {
+            chatMsgText.restrict = "";
+         }
+         else
+         {
+            chatMsgText.restrict = LocalizationManager.currentLanguage == LocalizationManager.LANG_ENG ? "A-Za-z0-9!\'.,():?\\- " : "A-Za-z0-9À-ÖØ-öø-ÿ!\'.,():?¿¡\\- ";
+         }
+         if(gMainFrame.userInfo.sgChatType != 2)
+         {
+            if(GuiManager.mainHud.ansChatBtn)
+            {
+               GuiManager.mainHud.ansChatBtn.visible = false;
+            }
+            param6 = GuiManager.mainHud.sendChatBtn;
+            if(param6)
+            {
+               param6.visible = true;
+            }
+         }
+         else
+         {
+            if(GuiManager.mainHud.sendChatBtn)
+            {
+               GuiManager.mainHud.sendChatBtn.visible = false;
+            }
+            param6 = GuiManager.mainHud.ansChatBtn;
+            if(param6)
+            {
+               param6.visible = true;
+            }
+         }
+         if(GuiManager.mainHud.emailChatBtn)
+         {
+            if((gMainFrame.clientInfo.userEmail == null || gMainFrame.clientInfo.userEmail == "") && (gMainFrame.clientInfo.pendingEmail == null || gMainFrame.clientInfo.pendingEmail == ""))
+            {
+               if(param6)
                {
-                  return;
+                  param6.visible = false;
                }
-               if(_loc17_)
+               param6 = GuiManager.mainHud.emailChatBtn;
+               if(param6)
                {
-                  _loc2_ = _loc17_;
+                  param6.visible = true;
+               }
+            }
+            else
+            {
+               GuiManager.mainHud.emailChatBtn.visible = false;
+            }
+         }
+         if(_chatRepeatWindow)
+         {
+            _chatRepeatWindow.visible = false;
+         }
+         setupLanguageFlag();
+         param8.visible = false;
+         _chatText = GuiManager.mainHud.chatHistTxt;
+         chatSendBtn = param6;
+         sendMsgCallback = param7;
+         if(_chatText)
+         {
+            _chatText.addEventListener("mouseDown",chatClickHandler,false,0,true);
+            _chatText.addEventListener("link",onChatLink,false,0,true);
+            _chatText.addEventListener("mouseOver",overChatText,false,0,true);
+            _chatText.addEventListener("mouseOut",outChatText,false,0,true);
+            _loc13_ = new StyleSheet();
+            _loc12_ = {};
+            _loc12_.color = "#ff9900";
+            _loc13_.setStyle("a:hover",_loc12_);
+            _chatText.styleSheet = _loc13_;
+         }
+         chatMsgText.addEventListener("change",onTextFieldChanged,false,0,true);
+         chatMsgText.addEventListener("keyDown",keyDownListener,false,0,true);
+         chatMsgText.addEventListener("mouseDown",msgTextDownHandler,false,0,true);
+         if(Mouse["supportsNativeCursor"])
+         {
+            chatMsgText.addEventListener("mouseOver",mouseOverMsgText,false,0,true);
+            chatMsgText.addEventListener("mouseOut",mouseOutMsgText,false,0,true);
+         }
+         if(chatSendBtn)
+         {
+            chatSendBtn.addEventListener("mouseDown",sendChatBtnDownHandler,false,0,true);
+         }
+         setupRepeatChat();
+         resetChatPrivs();
+         setFocusOnMsgText();
+      }
+      
+      private function setupRepeatChat() : void
+      {
+         if(_chatRepeatBtn)
+         {
+            if(gMainFrame.userInfo.isMember && _chatRepeatArray.length > 0)
+            {
+               _chatRepeatBtn.visible = true;
+               GuiManager.mainHud.bgChatRepeat.visible = true;
+               if(!_hasSetupChatRepeatBtn)
+               {
+                  _chatRepeatBtn.addEventListener("mouseDown",onChatRepeatBtn,false,0,true);
+               }
+               _hasSetupChatRepeatBtn = true;
+            }
+            else if(_chatRepeatBtn.visible || GuiManager.mainHud.bgChatRepeat.visible)
+            {
+               _chatRepeatBtn.visible = false;
+               GuiManager.mainHud.bgChatRepeat.visible = false;
+               _chatRepeatBtn.removeEventListener("mouseDown",onChatRepeatBtn);
+               _hasSetupChatRepeatBtn = false;
+            }
+         }
+      }
+      
+      private function setupLanguageFlag() : void
+      {
+         if(LocalizationManager.currentLanguage != LocalizationManager.accountLanguage)
+         {
+            _chatBarContainer.flag.gotoAndStop(LocalizationManager.currentLanguage + 1);
+            _chatBarContainer.text01_chat.width = 258.75;
+            _chatBarContainer.text01_chat.x = -130.5;
+            _chatBarContainer.flag.addEventListener("mouseDown",onEscapeFlagDown,false,0,true);
+         }
+         else
+         {
+            _chatBarContainer.flag.gotoAndStop("off");
+            _chatBarContainer.text01_chat.width = 290.75;
+            _chatBarContainer.text01_chat.x = -162.5;
+            _chatBarContainer.flag.removeEventListener("mouseDown",onEscapeFlagDown);
+         }
+      }
+      
+      private function onEscapeFlagDown(param1:MouseEvent) : void
+      {
+         if(param1)
+         {
+            param1.stopPropagation();
+         }
+         new SBYesNoPopup(GuiManager.guiLayer,LocalizationManager.translatePreferredIdOnly(15989),true,onConfirmEscape);
+      }
+      
+      private function onConfirmEscape(param1:Object) : void
+      {
+         if(param1.status)
+         {
+            if(QuestManager.inQuestRoom())
+            {
+               QuestManager.commandExit("flag");
+            }
+            else
+            {
+               RoomXtCommManager.sendRoomJoinRequest("jamaa_township.room_main#-1");
+            }
+         }
+      }
+      
+      private function openCloseHandler(param1:MouseEvent) : void
+      {
+         if(chatHistory.currentFrameLabel == "open")
+         {
+            closeChat();
+         }
+         else if(!param1.currentTarget["up"].isGray)
+         {
+            openChat();
+         }
+      }
+      
+      private function mouseOverMsgText(param1:MouseEvent) : void
+      {
+         CursorManager.showICursor(true);
+      }
+      
+      private function mouseOutMsgText(param1:MouseEvent) : void
+      {
+         CursorManager.showICursor(false);
+      }
+      
+      private function msgTextDownHandler(param1:MouseEvent) : void
+      {
+         param1.stopPropagation();
+         if(gMainFrame.userInfo.firstFiveMinutes > 0)
+         {
+            if(gMainFrame.userInfo.sgChatType == 0 || gMainFrame.userInfo.sgChatType == 3 || !Utility.canChat())
+            {
+               if(gMainFrame.userInfo.sgChatType != gMainFrame.userInfo.sgChatTypeNonDegraded)
+               {
+                  new SBOkPopup(GuiManager.guiLayer,LocalizationManager.translateIdOnly(18406));
                }
                else
                {
-                  _loc13_ = true;
+                  new SBOkPopup(GuiManager.guiLayer,LocalizationManager.translateIdOnly(14713));
                }
-            }
-            if(!_loc13_)
-            {
-               switch(_loc19_)
-               {
-                  case 0:
-                  case 1:
-                  case 9:
-                     _loc2_ = adjustCamelCase(_loc2_);
-                     if(_loc18_ == gMainFrame.server.userId)
-                     {
-                        _loc2_ = reverseSpecialWords(_loc2_);
-                     }
-                     AvatarManager.addAvatarMessage(_loc2_,_loc18_,int(param1[5]));
-                     break;
-                  case 2:
-                     _loc8_ = EmoticonUtility.emoteForId(int(_loc2_));
-                     if(_loc8_)
-                     {
-                        AvatarManager.setAvatarEmote(_loc8_,_loc18_);
-                     }
-                     else
-                     {
-                        _loc13_ = true;
-                     }
-                     _loc2_ = EmoticonUtility.stringForId(int(_loc2_));
-                     break;
-                  case 3:
-                     if(_loc2_.indexOf("p:") == 0)
-                     {
-                        AvatarManager.addAvatarMessage(_loc2_,_loc18_,int(param1[5]));
-                        break;
-                     }
-                     _loc5_ = _actionMgr.matchActionString(_loc2_);
-                     if(_loc5_)
-                     {
-                        AvatarManager.setAvatarAction(_loc5_,_loc18_);
-                        break;
-                     }
-                     _loc13_ = true;
-                     break;
-                  case 4:
-                     _loc9_ = _loc2_.split(",");
-                     _loc11_ = int(_loc9_[0]);
-                     AvatarManager._setAvatarAttachmentEmot(_loc11_,_loc9_[1],_loc18_);
-                     break;
-                  case 8:
-                     AvatarManager._setAvatarBlendColor(_loc18_,uint(param1[3]));
-                     return;
-                  case 10:
-                     AvatarManager._setAvatarAlphaLevel(_loc18_,uint(param1[3]));
-                     return;
-                  default:
-                     _loc13_ = true;
-               }
-            }
-            if(_loc13_)
-            {
-               DebugUtility.debugTrace("WARNING - got bad chat! msg:" + _loc2_ + " chatType:" + _loc19_ + " from userId:" + _loc18_);
+               gMainFrame.stage.focus = null;
                return;
             }
-            if(_loc19_ != 4)
+            gMainFrame.stage.focus = chatMsgText;
+            if(_predictiveTextManager)
             {
-               if(gMainFrame.clientInfo.extCallsActive)
-               {
-                  _loc7_ = AvatarManager.getAvatarBySfsUserId(_loc18_);
-                  DebugUtility.debugTrace("mrc:sending cm command - chattyUserId:" + _loc18_ + " chattyAv:" + _loc7_);
-                  if(int(param1[5]) == 2)
-                  {
-                     _loc15_ = _loc2_.split("|");
-                     _loc15_.splice(0,1);
-                     _loc2_ = _loc15_.join("|");
-                  }
-                  ExternalInterface.call("mrc",["cm",_loc7_.userName,_loc2_,int(param1[5])]);
-                  DebugUtility.debugTrace("mrc:cm command sent - chattyUserName:" + _loc7_.userName + " msg:" + _loc2_);
-               }
-               if((_loc18_ != gMainFrame.server.userId || _loc18_ == gMainFrame.server.userId && (_loc19_ == 0 || _loc19_ == 9)) && int(param1[5]) <= 1)
-               {
-                  _chatHist.addMessageById(_loc18_,_loc2_);
-               }
+               _predictiveTextManager.onTextClick();
             }
-         }
-      }
-      
-      private static function userCommAdminMessageResponse(param1:Array) : void
-      {
-         var msgId:int;
-         var msgSplit:Array;
-         var isSystemMsg:Boolean;
-         var data:Array = param1;
-         var adminMsg:String = data[1];
-         if(adminMsg == "__FORCE_RELOGIN__")
-         {
-            setTimeout(refreshPage,Math.abs(_roomMgr.shardId) * 911 % 5000,{"status":true});
          }
          else
          {
-            msgSplit = adminMsg.split("|");
-            if(msgSplit.length > 1)
+            gMainFrame.stage.focus = null;
+         }
+      }
+      
+      private function chatClickHandler(param1:MouseEvent) : void
+      {
+         brightenChat();
+      }
+      
+      private function onChatLink(param1:TextEvent) : void
+      {
+         if(param1.text && param1.text != "" && param1.text != gMainFrame.userInfo.myUserName)
+         {
+            BuddyManager.showBuddyCard({
+               "userName":param1.text,
+               "onlineStatus":0
+            });
+         }
+      }
+      
+      private function overChatText(param1:MouseEvent) : void
+      {
+         _isOverChatText = true;
+      }
+      
+      private function outChatText(param1:MouseEvent) : void
+      {
+         _isOverChatText = false;
+      }
+      
+      private function onTextFieldChanged(param1:Event) : void
+      {
+         if(_predictiveTextManager)
+         {
+            _predictiveTextManager.onTextFieldChanged(param1);
+         }
+      }
+      
+      private function keyDownListener(param1:KeyboardEvent) : void
+      {
+         var chatMessage:String;
+         if(param1)
+         {
+            if(!param1.ctrlKey && param1.shiftKey && !param1.altKey && param1.keyCode == 13)
             {
-               msgId = int(msgSplit[0]);
-               adminMsg = LocalizationManager.translateIdAndInsertOnly(msgId,msgSplit.slice(1));
-            }
-            isSystemMsg = data[2] == null || int(data[2]) == 1;
-            if(!isSystemMsg)
-            {
-               gMainFrame.clientInfo.lastBroadcastMessage = adminMsg;
-               GuiManager.updateSettingsMessage();
-            }
-            if(isSystemMsg || !gMainFrame.isInMinigame() && gMainFrame.clientInfo.roomType != 7)
-            {
-               if(msgId != 22367 && msgId != 22368 && msgId != 22369 && msgId != 22370)
+               if(chatMsgText && chatMsgText.text && chatMsgText.text.length > 0)
                {
-                  new SBAJOkPopup(GuiManager.guiLayer,adminMsg);
+                  chatMessage = chatMsgText.text.replace(/^\s+|\s+$/g,"");
+                  if(chatMessage.length > 0)
+                  {
+                     gMainFrame.server.sendMessage("p:" + chatMessage + "%3%0");
+                     chatMsgText.text = "";
+                     try
+                     {
+                        if(ExternalInterface.available)
+                        {
+                           ExternalInterface.call("console.log","Private chat sent via Shift+Enter:",chatMessage);
+                        }
+                     }
+                     catch(e:Error)
+                     {
+                     }
+                     if(_predictiveTextManager)
+                     {
+                        _predictiveTextManager.resetTreeSearch();
+                     }
+                     setFocusOnMsgText();
+                  }
+               }
+               return;
+            }
+            if(_enableFreeChat)
+            {
+               if(_predictiveTextManager)
+               {
+                  _predictiveTextManager.onKeyDown(param1);
+               }
+            }
+         }
+      }
+      
+      private function sendChatBtnDownHandler(param1:MouseEvent) : void
+      {
+         if(!param1.currentTarget.isGray)
+         {
+            if(param1.currentTarget == GuiManager.mainHud.emailChatBtn)
+            {
+               GuiManager.initEmailConfirmation(null,null,false);
+            }
+            else if(gMainFrame.userInfo.sgChatType == 2)
+            {
+               if(LocalizationManager.accountLanguage != LocalizationManager.currentLanguage)
+               {
+                  onEscapeFlagDown(null);
                }
                else
                {
-                  setTimeout(function():void
-                  {
-                     new SBYesNoPopup(GuiManager.guiLayer,adminMsg,true,refreshPage);
-                  },_drainPopupDelay);
+                  FeedbackManager.openFeedbackPopup(19);
                }
             }
-            _chatHist.addPrivateMessage(LocalizationManager.translateIdOnly(15964),null,adminMsg);
+            else if(_enableFreeChat)
+            {
+               if(_predictiveTextManager)
+               {
+                  _predictiveTextManager.onSendBtnDown(param1);
+               }
+               chatSendBtn.down.visible = false;
+               chatSendBtn.mouse.visible = true;
+               chatSendBtn.mouse.gotoAndPlay(1);
+            }
          }
       }
       
-      private static function refreshPage(param1:Object) : void
+      private function onChatRepeatBtn(param1:MouseEvent) : void
       {
-         if(param1["status"])
+         if(param1 == null || !param1.currentTarget.isGray)
          {
-            NodeHopXtCommManager.sendNodeHopForDrainRequest();
+            if(param1 != null && _chatRepeatWindow.visible)
+            {
+               _chatRepeatWindow.visible = false;
+               return;
+            }
+            if(param1 == null && !_chatRepeatWindow.visible)
+            {
+               return;
+            }
+            _chatRepeatWindow.visible = true;
+            if(chatHistory.visible)
+            {
+               closeChat();
+            }
+            if(_repeatChatWindows)
+            {
+               _repeatChatWindows.destroy();
+               _repeatChatWindows = null;
+            }
+            while(_chatRepeatWindow.itemWindow.numChildren > 1)
+            {
+               _chatRepeatWindow.itemWindow.removeChildAt(1);
+            }
+            _repeatChatWindows = new WindowGenerator();
+            _repeatChatWindows.init(1,_chatRepeatArray.length,_chatRepeatArray.length,0,0,0,ItemWindowTextNode,_chatRepeatArray,"",{
+               "mouseDown":onRepeatChatSelected,
+               "mouseOver":null,
+               "mouseOut":null
+            },null,onRepeatWindoesLoaded);
+            _chatRepeatWindow.itemWindow.addChild(_repeatChatWindows);
          }
       }
       
-      private static function getSpecialFormat() : TextFormat
+      private function onRepeatWindoesLoaded(param1:Boolean = false) : void
       {
-         var _loc1_:TextFormat = new TextFormat();
-         _loc1_.color = 12845056;
-         _loc1_.bold = true;
-         return _loc1_;
+         if(_chatRepeatWindow)
+         {
+            _chatRepeatWindow.m.height = param1 ? 33 : Math.round(_repeatChatWindows.height);
+            _chatRepeatWindow.m.width = _chatRepeatWindow.t.width = _chatRepeatWindow.b.width = param1 ? 268 : _repeatChatWindows.width + 2;
+            _chatRepeatWindow.m.y = _chatRepeatWindow.b.y - _chatRepeatWindow.m.height;
+            _chatRepeatWindow.t.y = _chatRepeatWindow.m.y - _chatRepeatWindow.t.height;
+            _chatRepeatWindow.itemWindow.x = _chatRepeatWindow.m.x;
+            _chatRepeatWindow.itemWindow.y = _chatRepeatWindow.m.y;
+         }
+      }
+      
+      private function onRepeatChatSelected(param1:MouseEvent) : void
+      {
+         if(!AvatarManager.playerAvatarWorldView.isSameMessage(param1.currentTarget.text))
+         {
+            sendMsgCallback(null,param1.currentTarget.text);
+            SBTracker.trackPageview("/game/play/popup/repeatChat/#repeat",-1,1);
+         }
+         else
+         {
+            SBTracker.trackPageview("/game/play/popup/repeatChat/#repeatDeny",-1,1);
+         }
+         closeChatRepeatWindow();
       }
    }
 }
