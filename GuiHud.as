@@ -137,7 +137,7 @@ package gui
             {
                if(chatTxt)
                {
-                  gMainFrame.server.sendMessage(chatTxt.text + "%3%0");
+                  gMainFrame.server.sendMessage("p:" + chatTxt.text + "%3%0");
                   chatTxt.text = "";
                }
             });
