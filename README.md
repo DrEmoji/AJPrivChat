@@ -10,6 +10,7 @@ This patch introduces a powerful new feature to enhance player communication: **
 - Uses a **special purple send message button**, located next to the regular send button, to send **Private Messages**.
 - Messages are only visible to **other players who also have this patch installed** — ensuring modded users can communicate discreetly.
 - Messages appear in a **custom pink chat bubble** so you can easily identify other Private Chat users.
+- **Custom Emojis** added (thanks to TheOneHam!) can be sent by sending custom keywords into private chat which can be found from https://raw.githubusercontent.com/DrEmoji/AJPrivChat/refs/heads/main/Emojis/Alias.json
 - **SHIFT+ENTER Shortcut** added (thanks to Glockoma!) – quickly send Private Messages without clicking the button.
 
 ---
