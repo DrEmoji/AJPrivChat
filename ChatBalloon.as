@@ -37,7 +37,7 @@ package gui
       
       private var _originalCustomMsgText:String;
       
-      private var _emoteBG:MovieClip = null;
+      public var _emoteBG:MovieClip = null;
       
       private var _emote:Sprite = null;
       
