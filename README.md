@@ -21,6 +21,7 @@ This patch introduces a powerful new feature to enhance player communication: **
 - **DO NOT press Enter or the default Send button** unless you mean to send a public message.
 - Always use the **purple Private Chat button** or **SHIFT+ENTER** for private messaging.
 - If your recipient **does not have the patch**, they will **not see** your private messages.
+- **For client makers** some files I havent uploaded for security reasons if you would like them please contact me
 
 ---
 
