@@ -26,3 +26,4 @@ This patch introduces a powerful new feature to enhance player communication: **
 ### 📷 Preview
 
 https://gyazo.com/c2decdf797d3ea0552961e5ba323b831
+https://gyazo.com/eb2d3f4df231c7561e83a58c6cec1304
