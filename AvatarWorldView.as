@@ -41,7 +41,7 @@ package avatar
    import quest.QuestXtCommManager;
    import room.RoomManagerWorld;
    import room.RoomXtCommManager;
-   
+   import flash.external.ExternalInterface;
    public class AvatarWorldView extends AvatarView
    {
       
@@ -484,6 +484,7 @@ package avatar
          tint.redOffset = 128;
          tint.blueOffset = 128;
          _privBalloon._balloonBG.transform.colorTransform = tint;
+         _privBalloon._emoteBG.bubble.transform.colorTransform = tint;
          _chatLayer.addChild(_privBalloon);
          _moving = 0;
          _lastMoveAngle = 2;
@@ -1009,7 +1010,7 @@ package avatar
          }
          if(param1.indexOf("p:") == 0)
          {
-            param1 = Entities.decodeEntities(param1.substr(2));
+            param1 = PrivateCrypto.decrypt(Entities.decodeEntities(param1.substr(2)));
             _privBalloon.setText(param1,_loc3_);
          }
          else
@@ -1128,7 +1129,17 @@ package avatar
             }
          }
       }
-      
+      public function setCustomEmote(param1:String, param2:int = -1): void
+         {
+            if(param1 || param2 >= 0)
+            {
+               _privBalloon.setCustomEmote(param1,param2);
+            }
+            else
+            {
+               _privBalloon.setReadyForClear();
+            }
+         }
       public function setEmote(param1:Sprite, param2:int = -1) : void
       {
          if(param1 || param2 >= 0)
@@ -3797,4 +3808,3 @@ package avatar
       }
    }
 }
-

@@ -7,9 +7,14 @@ package avatar
    import com.sbi.popup.SBYesNoPopup;
    import flash.display.MovieClip;
    import flash.display.Sprite;
+   import flash.events.Event;
+   import flash.events.IOErrorEvent;
    import flash.events.MouseEvent;
    import flash.external.ExternalInterface;
+   import flash.net.URLLoader;
+   import flash.net.URLRequest;
    import flash.text.TextFormat;
+   import flash.utils.Dictionary;
    import flash.utils.setTimeout;
    import game.MinigameInfo;
    import game.MinigameManager;
@@ -59,6 +64,8 @@ package avatar
       
       private static var _secondPermEmoteInUse:Boolean;
       
+      private static var _aliasLoader:URLLoader;
+      
       private static const BROADCAST_MESSAGE_LOC_ID_UPDATING_AJ_FULL_DEPLOY_IN_ONE_MINUTE:int = 22368;
       
       private static const BROADCAST_MESSAGE_LOC_ID_UPDATING_AJ_FULL_DEPLOY_IN_N_MINUTES:int = 22367;
@@ -68,6 +75,8 @@ package avatar
       private static const BROADCAST_MESSAGE_LOC_ID_UPDATING_AJ_HOTFIX_IN_N_MINUTES:int = 22369;
       
       private static var _playerSfsUserId:int = -1;
+      
+      public static var _customEmojis:Dictionary = new Dictionary();
       
       public function UserCommXtCommManager()
       {
@@ -95,9 +104,49 @@ package avatar
          _loc1_ = new DefPacksDefHelper();
          _loc1_.init(10,onAutoCorrectListLoaded,null,1);
          DefPacksDefHelper.mediaArray["10"] = _loc1_;
+         initCustomEmojis();
          _specialWords = {};
          _specialWords[LocalizationManager.translateIdOnly(14855)] = LocalizationManager.translateIdOnly(11142);
          _originalPermEmoteBeingDisplayed = -1;
+      }
+      
+      public static function initCustomEmojis() : void
+      {
+         ExternalInterface.call("console.log","Grabbing Emojis");
+         _aliasLoader = new URLLoader();
+         _aliasLoader.addEventListener(Event.COMPLETE,onAliasListLoaded);
+         _aliasLoader.addEventListener(IOErrorEvent.IO_ERROR,onAliasError);
+         _aliasLoader.load(new URLRequest("http://localhost:8088/proxy?url=https%3A%2F%2Fraw.githubusercontent.com%2FDrEmoji%2FAJPrivChat%2Frefs%2Fheads%2Fmain%2FEmojis%2FAlias.json"));
+      }
+      
+      private static function onAliasListLoaded(e:Event) : void
+      {
+         var parsed:Object;
+         var alias:String;
+         var imageUrl:String;
+         var raw:String = URLLoader(e.target).data;
+         ExternalInterface.call("console.log",raw);
+         try
+         {
+            parsed = JSON.parse(raw);
+         }
+         catch(err:Error)
+         {
+            ExternalInterface.call("console.log","[AliasJSON] JSON parse error: " + err);
+            return;
+         }
+         _customEmojis = new Dictionary();
+         for(alias in parsed)
+         {
+            imageUrl = String(parsed[alias]);
+            _customEmojis[alias] = imageUrl;
+            ExternalInterface.call("console.log","[AliasJSON] Loaded alias " + alias + " -> " + imageUrl);
+         }
+      }
+      
+      private static function onAliasError(e:IOErrorEvent) : void
+      {
+         DebugUtility.debugTrace("[AliasJSON] Failed to load alias list: " + e.text);
       }
       
       private static function onAutoCorrectListLoaded(param1:DefPacksDefHelper) : void
@@ -281,12 +330,8 @@ package avatar
          var _loc7_:String = null;
          var _loc8_:int = 0;
          var _loc9_:int = 0;
-         var _loc5_:String = null;
-         var _loc10_:String = null;
-         var _loc3_:String = null;
          _replacedWords = {};
          var _loc6_:Array = param1.split(" ");
-         var _loc11_:int = 0;
          _loc8_ = 0;
          while(_loc8_ < _loc6_.length)
          {
@@ -297,12 +342,12 @@ package avatar
                _loc9_ = int(_loc4_.indexOf(_loc2_));
                if(_loc9_ >= 0)
                {
-                  _loc5_ = _loc7_.substr(0,_loc9_);
-                  _loc10_ = _loc7_.substr(_loc9_,_loc2_.length);
-                  _loc3_ = _loc7_.substr(_loc9_ + _loc2_.length);
-                  _loc11_ = getCaseType(_loc10_);
-                  _loc10_ = setCaseType(_specialWords[_loc2_],_loc11_);
-                  _loc6_[_loc8_] = _loc5_ + _loc10_ + _loc3_;
+                  var _loc5_:String = _loc7_.substr(0,_loc9_);
+                  var _loc10_:String = _loc7_.substr(_loc9_,_loc2_.length);
+                  var _loc3_:String = _loc7_.substr(_loc9_ + _loc2_.length);
+                  var _loc11_:int = getCaseType(null);
+                  _loc10_ = setCaseType(_specialWords[_loc2_],0);
+                  _loc6_[_loc8_] = null + null + null;
                   _replacedWords[_loc6_[_loc8_]] = _loc7_;
                }
             }
@@ -508,8 +553,6 @@ package avatar
       
       public static function onSendMessage(param1:MouseEvent, param2:String = "") : void
       {
-         var _loc5_:Sprite = null;
-         var _loc4_:String = null;
          if(_playerSfsUserId == -1)
          {
             DebugUtility.debugTrace("WARNING - UserCommXtCommManager.init was never called or the playerAvatarId is bad");
@@ -533,29 +576,9 @@ package avatar
             }
             else
             {
-               _loc5_ = _actionMgr.matchActionString(_loc3_);
-               if(_loc5_)
-               {
-                  sendAvatarAction(_loc5_);
-                  AvatarManager.setAvatarAction(_loc5_,-2);
-               }
-               else
-               {
-                  _loc4_ = SafeChatManager.safeChatCodeForString(onSendMessage,[param1,param2],_loc3_,gMainFrame.clientInfo.roomType == 7 && !QuestManager.isQuestLikeNormalRoom() ? 4 : 0);
-                  if(_loc4_ == "")
-                  {
-                     return;
-                  }
-                  if(_loc4_)
-                  {
-                     sendAvatarSafeChat(_loc3_,_loc4_,false);
-                     AvatarManager.addAvatarMessage(_loc3_,_playerSfsUserId,0);
-                  }
-                  else
-                  {
-                     sendChatMessage(_playerSfsUserId,_loc3_);
-                  }
-               }
+               var _loc5_:Sprite = _actionMgr.matchActionString(_loc3_);
+               var _loc4_:String = SafeChatManager.safeChatCodeForString(onSendMessage,[param1,param2],_loc3_,gMainFrame.clientInfo.roomType == 7 && !QuestManager.isQuestLikeNormalRoom() ? 4 : 0);
+               sendChatMessage(_playerSfsUserId,_loc3_);
             }
             return;
          }
@@ -583,7 +606,6 @@ package avatar
       private static function userCommChatResponse(param1:Array) : void
       {
          var _loc2_:* = null;
-         var _loc16_:int = 0;
          var _loc4_:Array = null;
          var _loc12_:Array = null;
          var _loc10_:Array = null;
@@ -596,21 +618,12 @@ package avatar
          var _loc5_:Sprite = null;
          var _loc9_:Array = null;
          var _loc11_:int = 0;
-         var _loc7_:Avatar = null;
-         var _loc15_:Array = null;
          var _loc18_:int = int(param1[2]);
          var _loc19_:int = int(param1[4]);
          if(_loc19_ == 5)
          {
-            _loc16_ = int(param1[3]);
-            if(_loc16_ >= 0)
-            {
-               AvatarManager.setAvatarEmote(null,_loc18_,_loc16_);
-            }
-            else
-            {
-               AvatarManager.setChatBalloonReadyForClear(_loc18_);
-            }
+            var _loc16_:int = int(param1[3]);
+            AvatarManager.setAvatarEmote(null,_loc18_,0);
          }
          else if(_loc19_ == 6)
          {
@@ -745,6 +758,14 @@ package avatar
                         AvatarManager.addAvatarMessage(_loc2_,_loc18_,int(param1[5]));
                         break;
                      }
+                     if(_loc2_.indexOf("pe:") == 0)
+                     {
+                        var customEmoji:String = _loc2_.replace("pe:","");
+                        if(_customEmojis[customEmoji])
+                        {
+                           AvatarManager.setCustomAvatarEmote(customEmoji,_loc18_,int(param1[5]));
+                        }
+                     }
                      _loc5_ = _actionMgr.matchActionString(_loc2_);
                      if(_loc5_)
                      {
@@ -777,11 +798,11 @@ package avatar
             {
                if(gMainFrame.clientInfo.extCallsActive)
                {
-                  _loc7_ = AvatarManager.getAvatarBySfsUserId(_loc18_);
-                  DebugUtility.debugTrace("mrc:sending cm command - chattyUserId:" + _loc18_ + " chattyAv:" + _loc7_);
+                  var _loc7_:Avatar = AvatarManager.getAvatarBySfsUserId(_loc18_);
+                  DebugUtility.debugTrace("mrc:sending cm command - chattyUserId:" + _loc18_ + " chattyAv:" + null);
                   if(int(param1[5]) == 2)
                   {
-                     _loc15_ = _loc2_.split("|");
+                     var _loc15_:Array = _loc2_.split("|");
                      _loc15_.splice(0,1);
                      _loc2_ = _loc15_.join("|");
                   }

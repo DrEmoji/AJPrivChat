@@ -6,7 +6,14 @@ package gui
    import flash.geom.Point;
    import loader.MediaHelper;
    import localization.LocalizationManager;
-   
+   import flash.external.ExternalInterface;
+   import avatar.UserCommXtCommManager;
+   import flash.display.Loader;
+   import flash.net.URLRequest;
+   import flash.display.LoaderInfo;
+   import flash.display.Bitmap;
+   import flash.events.Event;
+
    public dynamic class ChatBalloon extends MovieClip
    {
       
@@ -59,6 +66,8 @@ package gui
       private var _onCustomPVPBtn:Function;
       
       private var _emoteBGOffsetFunc:Function;
+
+      
       
       public function ChatBalloon()
       {
@@ -325,7 +334,91 @@ package gui
             this.itemWindow.y = _btnBallonBG.y;
          }
       }
-      
+      private var _fileRequest:Loader
+      public const use_proxy:Boolean = true
+
+      public function setCustomEmote(param1:String,param2:int = -1) : void {
+         if (use_proxy){
+            if (_customEmote){
+               _emoteBG.itemWindow.removeChild(_customEmote);
+               _customEmote = null;
+            }
+         } else {
+            if (_fileRequest){
+            if (_fileRequest.parent)
+            {
+               _fileRequest.parent.removeChild(_fileRequest);
+            }
+            try { _fileRequest.close(); } catch(e:*){}
+            try { _fileRequest.unloadAndStop(true); } catch(e:*){}
+         }
+         }
+         _fileRequest = new Loader();
+         var url:String = ""
+
+         if (use_proxy){
+            url = "http://localhost:8088/proxy?url=" + encodeURIComponent(UserCommXtCommManager._customEmojis[param1])
+         } else{
+            url = UserCommXtCommManager._customEmojis[param1]
+         }
+
+         var urlReq:URLRequest = new URLRequest(url)
+         _fileRequest.load(urlReq);
+         _fileRequest.contentLoaderInfo.addEventListener(Event.COMPLETE, onCustomEmoteImageCallback)
+         
+      }
+      private var _customEmote:*
+
+      private var base_width:Number = 54
+      private var base_height:Number = 53
+
+      private function getBestImageSize(width,height) : Point {
+         var widthRatio:Number = base_width / Number(width)
+         var heightRatio:Number = base_height / Number(height)
+         var bestRatio:Number = Math.min(widthRatio, heightRatio)
+         var newWidth:Number = width * bestRatio
+         var newHeight:Number = height * bestRatio
+         return new Point(newWidth,newHeight)
+      }
+      private function onCustomEmoteImageCallback(e:Event) : void
+      {
+         _fileRequest.contentLoaderInfo.removeEventListener(Event.COMPLETE, onCustomEmoteImageCallback)
+         if(this.currentFrameLabel != "advBtn")
+         {
+            if(_emote)
+            {
+               _emoteBG.itemWindow.removeChild(_emote);
+               _emote = null;
+            }
+            _msgTxt.text = "";
+            addChild(_emoteBG);
+
+            if (use_proxy){
+               var content:Bitmap = new Bitmap(e.target.content.bitmapData);
+               var newSize = getBestImageSize(content.width,content.height)
+
+               _customEmote = content
+               _customEmote.width = newSize.x
+               _customEmote.height = newSize.y
+               _customEmote.x -= newSize.x / 2
+               _customEmote.y -= newSize.y / 2
+            } else {
+               _customEmote = new Sprite();
+               _customEmote.addChild(_fileRequest)
+            }
+            _customEmote.y -= 5;
+            _emoteBG.itemWindow.addChild(_customEmote);
+
+            _timeout = 8000;
+
+            _balloonBG.visible = false;
+            setAlpha(1);
+            _emoteBG.bubble.alpha = _maxAlpha;
+            _emoteBG.itemWindow.alpha = 1;
+            this.visible = true;
+            
+         }
+      }
       public function setEmote(param1:Sprite, param2:int = -1) : void
       {
          if(this.currentFrameLabel != "advBtn")
@@ -335,6 +428,10 @@ package gui
             {
                _emoteBG.itemWindow.removeChild(_emote);
                _emote = null;
+            }
+            if (_customEmote){
+               _emoteBG.itemWindow.removeChild(_customEmote);
+               _customEmote = null;
             }
             if(_permEmoteMediaId >= 0)
             {
@@ -483,4 +580,3 @@ package gui
       }
    }
 }
-

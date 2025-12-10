@@ -20,7 +20,9 @@ package gui
    import localization.LocalizationManager;
    import quest.QuestManager;
    import room.RoomXtCommManager;
-   
+   import avatar.UserCommXtCommManager;
+
+
    public class ChatHistory
    {
       
@@ -744,7 +746,11 @@ package gui
                   chatMessage = chatMsgText.text.replace(/^\s+|\s+$/g,"");
                   if(chatMessage.length > 0)
                   {
-                     gMainFrame.server.sendMessage("p:" + chatMessage + "%3%0");
+                     if (UserCommXtCommManager._customEmojis[chatMessage]){
+                        gMainFrame.server.sendMessage("pe:" + chatMessage + "%3%0");
+                     } else {
+                        gMainFrame.server.sendMessage("p:" + PrivateCrypto.encrypt(chatMessage) + "%3%0");
+                     }
                      chatMsgText.text = "";
                      try
                      {
@@ -872,4 +878,3 @@ package gui
       }
    }
 }
-
