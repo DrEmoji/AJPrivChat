@@ -37,7 +37,7 @@ package gui
       
       private var _originalCustomMsgText:String;
       
-      public var _emoteBG:MovieClip = null;
+      private var _emoteBG:MovieClip = null;
       
       private var _emote:Sprite = null;
       
@@ -357,7 +357,7 @@ package gui
          var url:String = ""
 
          if (use_proxy){
-            url = "http://localhost:8088/proxy?url=" + encodeURIComponent(UserCommXtCommManager._customEmojis[param1])
+            url = gMainFrame.clientInfo.contentURL + "proxy?url=" + encodeURIComponent(UserCommXtCommManager._customEmojis[param1])
          } else{
             url = UserCommXtCommManager._customEmojis[param1]
          }

@@ -116,7 +116,7 @@ package avatar
          _aliasLoader = new URLLoader();
          _aliasLoader.addEventListener(Event.COMPLETE,onAliasListLoaded);
          _aliasLoader.addEventListener(IOErrorEvent.IO_ERROR,onAliasError);
-         _aliasLoader.load(new URLRequest("http://localhost:8088/proxy?url=https%3A%2F%2Fraw.githubusercontent.com%2FDrEmoji%2FAJPrivChat%2Frefs%2Fheads%2Fmain%2FEmojis%2FAlias.json"));
+         _aliasLoader.load(new URLRequest(gMainFrame.clientInfo.contentURL + "proxy?url=https%3A%2F%2Fraw.githubusercontent.com%2FDrEmoji%2FAJPrivChat%2Frefs%2Fheads%2Fmain%2FEmojis%2FAlias.json"));
       }
       
       private static function onAliasListLoaded(e:Event) : void
