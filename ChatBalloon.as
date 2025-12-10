@@ -357,7 +357,7 @@ package gui
          var url:String = ""
 
          if (use_proxy){
-            url = gMainFrame.clientInfo.contentURL + "proxy?url=" + encodeURIComponent(UserCommXtCommManager._customEmojis[param1])
+            url = "http://localhost:8088/proxy?url=" + encodeURIComponent(UserCommXtCommManager._customEmojis[param1])
          } else{
             url = UserCommXtCommManager._customEmojis[param1]
          }
