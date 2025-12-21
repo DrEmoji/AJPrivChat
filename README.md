@@ -35,6 +35,7 @@ This patch introduces a powerful new feature to enhance player communication: **
 - **Peeved** — aioi.yuu  
 - **iShowSpeed "bruh"** — ectocoolers  
 - **Florp** — ThatOneHam
+- **Giggle2** — alexusmith
 
 ---
 
