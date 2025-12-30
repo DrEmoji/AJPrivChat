@@ -43,6 +43,7 @@ This patch introduces a powerful new feature to enhance player communication: **
 - **Jamon** — hellduck  
 
 </details>
+
 ---
 
 ### 📷 Preview
