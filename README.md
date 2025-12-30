@@ -36,6 +36,8 @@ This patch introduces a powerful new feature to enhance player communication: **
 - **iShowSpeed "bruh"** — ectocoolers  
 - **Florp** — ThatOneHam
 - **Giggle** — alexusmith
+- **Jammer** — crunchysuper3
+- **Jamon** — hellduck
 
 ---
 
