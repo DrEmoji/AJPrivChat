@@ -27,18 +27,22 @@ This patch introduces a powerful new feature to enhance player communication: **
 
 ---
 
-### 🎨 Emoji Credits
+## 🎨 Emoji Credits
+
+<details>
+  <summary><b>Show Emoji Credits</b></summary>
 
 - **Skull** — dizzytoffee  
 - **Nerd** — okcato  
 - **Disappointed** — frankgofhu  
 - **Peeved** — aioi.yuu  
 - **iShowSpeed "bruh"** — ectocoolers  
-- **Florp** — ThatOneHam
-- **Giggle** — alexusmith
-- **Jammer** — crunchysuper3
-- **Jamon** — hellduck
+- **Florp** — ThatOneHam  
+- **Giggle** — alexusmith  
+- **Jammer** — crunchysuper3  
+- **Jamon** — hellduck  
 
+</details>
 ---
 
 ### 📷 Preview
