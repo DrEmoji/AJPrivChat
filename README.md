@@ -30,7 +30,7 @@ This patch introduces a powerful new feature to enhance player communication: **
 ## 🎨 Emoji Credits
 
 <details>
-  <summary><b>Show Emoji Credits</b></summary>
+  <summary><b>Show Credits</b></summary>
 
 - **Skull** — dizzytoffee  
 - **Nerd** — okcato  
