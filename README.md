@@ -17,7 +17,7 @@ This patch introduces a powerful new feature to enhance player communication: **
 
 ---
 
-## 🧩 Strawberry Plugin
+## 🧩 Optional Plugin
 
 AJPrivChat integrates with Strawberry Jam, offering a simpler and more user-friendly emoji menu for sending emojis.
 
