@@ -17,6 +17,15 @@ This patch introduces a powerful new feature to enhance player communication: **
 
 ---
 
+## 🧩 Strawberry Plugin
+
+AJPrivChat integrates with Strawberry Jam, offering a simpler and more user-friendly emoji menu for sending emojis.
+
+- Strawberry Jam releases:  
+  https://github.com/glvckoma/Strawberry-Jam/releases
+
+---
+
 ### ⚠️ Important Notes
 
 - **USE AT YOUR OWN RISK** – This bypasses standard filters and may violate server terms of service.
