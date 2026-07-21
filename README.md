@@ -3,8 +3,9 @@
 This patch introduces a powerful new feature to enhance player communication: **Private Chat**, available *only* to users running this patch.
 ---
 
-[!NOTE]
-Project status: AJPrivChat is technically archived and is no longer under active development or maintenance. The repository has intentionally not been marked as archived on GitHub so that new custom emojis can still be added when needed.
+### 🛑 Project Status
+
+AJPrivChat is technically archived and is no longer under active development or maintenance. The repository has intentionally not been marked as archived on GitHub so that new custom emojis can still be added when needed.
 
 ---
 
