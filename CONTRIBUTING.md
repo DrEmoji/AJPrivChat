@@ -15,7 +15,7 @@ When contributing emojis to this project, please follow these guidelines:
 3. **Keep image sizes reasonable**
 
    * Emojis should not be excessively large.
-   * Some existing emojis may be bigger than ideal, but please avoid anything extreme, such as 2K-resolution images.
+   * All images must be 512 pixels in height. The width may vary, but should remain reasonably close to 512 pixels and must not exceed 1,000 pixels.
    * Oversized emojis can cause lag, especially on lower-end devices.
 
 4. **Prefer transparent images**
