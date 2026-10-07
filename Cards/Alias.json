@@ -11,6 +11,10 @@
     "url": "https://raw.githubusercontent.com/DrEmoji/AJPrivChat/refs/heads/main/Cards/AlwaysHasBeen.png",
     "tags": ["meme", "astronaut"]
   },
+  "Animal Jam Phantom": {
+    "url": "https://raw.githubusercontent.com/DrEmoji/AJPrivChat/refs/heads/main/Cards/AJPhantom.jpg",
+    "tags": ["aj", "animal jam", "drawing"]
+  },
   "Animal Jam Wallpaper": {
     "url": "https://raw.githubusercontent.com/DrEmoji/AJPrivChat/refs/heads/main/Cards/AJWallpaper.jpg",
     "tags": ["aj", "jamaa"]
@@ -324,8 +328,8 @@
     "tags": ["spongebob", "cartoon"]
   },
   "Phantom": {
-    "url": "https://raw.githubusercontent.com/DrEmoji/AJPrivChat/refs/heads/main/Cards/Phantom.jpg",
-    "tags": ["aj", "animal jam", "drawing"]
+    "url": "https://raw.githubusercontent.com/DrEmoji/AJPrivChat/refs/heads/main/Cards/Phantom.png",
+    "tags": ["logo", "paw", "icon"]
   },
   "Please Stop": {
     "url": "https://raw.githubusercontent.com/DrEmoji/AJPrivChat/refs/heads/main/Cards/PleaseStop.jpg",
